@@ -20,40 +20,50 @@ async function load() {
   const to = document.getElementById("to").value;
   const list = document.getElementById("list");
 
-  // Show a loading state
+  if (!from || !to) {
+    alert("Please select both dates.");
+    return;
+  }
+
   list.innerHTML = "<li>Loading...</li>";
 
   try {
     const r = await fetch(
-      "https://timetastic-proxy.onrender.com/diary?from=" + from + "&to=" + to
+      `https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`
     );
-    const data = await r.json();
     
-    list.innerHTML = ""; // Clear list
+    const data = await r.json();
 
-    // 1. Loop through each DATE object
+    // ERROR CHECK: Ensure data is an array
+    if (!Array.isArray(data)) {
+      console.error("Received non-array data:", data);
+      list.innerHTML = `<li style="color: red;">Error: Server returned unexpected data format.</li>`;
+      return;
+    }
+
+    list.innerHTML = ""; // Clear the list
+
+    // Outer Loop: Iterates through each date object
     data.forEach(day => {
-      // 2. Loop through the ABSENCES array inside that date
-      day.absences.forEach(abs => {
-        const li = document.createElement("li");
-        
-        // Use 'abs' instead of 'e' to get the details
-        const name = abs.userName;
-        const type = abs.absenceType;
-        const detail = abs.detail;
-        
-        li.textContent = `${day.date}: ${name} (${type} - ${detail})`;
-        list.appendChild(li);
-      });
+      // Inner Loop: Iterates through the absences for that day
+      if (day.absences && Array.isArray(day.absences)) {
+        day.absences.forEach(abs => {
+          const li = document.createElement("li");
+          
+          // Formatting the output: Date - Name (Type)
+          li.textContent = `${day.date}: ${abs.userName} (${abs.absenceType})`;
+          list.appendChild(li);
+        });
+      }
     });
 
     if (list.innerHTML === "") {
-      list.innerHTML = "<li>No data found for these dates.</li>";
+      list.innerHTML = "<li>No absences found for this range.</li>";
     }
 
   } catch (error) {
-    list.innerHTML = "<li>Error loading data. Check console.</li>";
-    console.error(error);
+    list.innerHTML = `<li style="color: red;">Failed to fetch: ${error.message}</li>`;
+    console.error("Fetch error:", error);
   }
 }
 </script>
