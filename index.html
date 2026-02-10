@@ -13,25 +13,48 @@
 
 <ul id="list"></ul>
 
+
 <script>
 async function load() {
   const from = document.getElementById("from").value;
   const to = document.getElementById("to").value;
-
-  const r = await fetch(
-    "https://timetastic-proxy.onrender.com/diary?from=" + from + "&to=" + to
-  );
-
-  const data = await r.json();
-
   const list = document.getElementById("list");
-  list.innerHTML = "";
 
-  data.forEach(e => {
-    const li = document.createElement("li");
-    li.textContent = `${e.userName} ${e.startDate} → ${e.endDate}`;
-    list.appendChild(li);
-  });
+  // Show a loading state
+  list.innerHTML = "<li>Loading...</li>";
+
+  try {
+    const r = await fetch(
+      "https://timetastic-proxy.onrender.com/diary?from=" + from + "&to=" + to
+    );
+    const data = await r.json();
+    
+    list.innerHTML = ""; // Clear list
+
+    // 1. Loop through each DATE object
+    data.forEach(day => {
+      // 2. Loop through the ABSENCES array inside that date
+      day.absences.forEach(abs => {
+        const li = document.createElement("li");
+        
+        // Use 'abs' instead of 'e' to get the details
+        const name = abs.userName;
+        const type = abs.absenceType;
+        const detail = abs.detail;
+        
+        li.textContent = `${day.date}: ${name} (${type} - ${detail})`;
+        list.appendChild(li);
+      });
+    });
+
+    if (list.innerHTML === "") {
+      list.innerHTML = "<li>No data found for these dates.</li>";
+    }
+
+  } catch (error) {
+    list.innerHTML = "<li>Error loading data. Check console.</li>";
+    console.error(error);
+  }
 }
 </script>
 
