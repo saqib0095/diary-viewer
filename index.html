@@ -20,46 +20,41 @@ async function load() {
   const to = document.getElementById("to").value;
   const list = document.getElementById("list");
 
-  if (!from || !to) {
-    alert("Please select both dates.");
-    return;
-  }
-
   list.innerHTML = "<li>Loading...</li>";
 
   try {
-    const r = await fetch(
-      `https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`
-    );
-    
+    const r = await fetch(`https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`);
     const data = await r.json();
-    list.innerHTML = ""; // Clear loading message
+    
+    list.innerHTML = ""; // Clear list
 
-    // 1. Loop through each day in the response
+    // LOOP 1: Iterate through each date object
     data.forEach(day => {
-      // 2. Loop through the array of absences for that specific day
+      
+      // Check if 'absences' exists for this date
       if (day.absences && Array.isArray(day.absences)) {
+        
+        // LOOP 2: Iterate through the people absent on THIS specific date
         day.absences.forEach(abs => {
           const li = document.createElement("li");
           
-          // These match the keys exactly as they appear in the documentation
-          const name = abs.userName; 
-          const type = abs.absenceType;
-          const date = day.date; 
+          // ACCESSING DATA: 
+          // 'day.date' comes from the outer loop
+          // 'abs.userName' comes from the inner loop
+          const name = abs.userName || "No Name Found";
+          const type = abs.absenceType || "No Type";
 
-          li.textContent = `${date}: ${name} (${type})`;
+          li.textContent = `${day.date}: ${name} (${type})`;
           list.appendChild(li);
         });
       }
     });
 
     if (list.innerHTML === "") {
-      list.innerHTML = "<li>No data found for these dates.</li>";
+      list.innerHTML = "<li>No data found.</li>";
     }
-
-  } catch (error) {
-    list.innerHTML = `<li style="color: red;">Error: ${error.message}</li>`;
-    console.error("Fetch error:", error);
+  } catch (e) {
+    list.innerHTML = "<li>Error: " + e.message + "</li>";
   }
 }
 </script>
