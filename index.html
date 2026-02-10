@@ -21,49 +21,43 @@ async function load() {
   const list = document.getElementById("list");
 
   if (!from || !to) {
-    alert("Please select both dates.");
+    alert("Please select dates first");
     return;
   }
 
   list.innerHTML = "<li>Loading...</li>";
 
   try {
-    const r = await fetch(
-      `https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`
-    );
-    
+    const r = await fetch(`https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`);
     const data = await r.json();
+    
+    list.innerHTML = "";
 
-    // ERROR CHECK: Ensure data is an array
-    if (!Array.isArray(data)) {
-      console.error("Received non-array data:", data);
-      list.innerHTML = `<li style="color: red;">Error: Server returned unexpected data format.</li>`;
-      return;
-    }
-
-    list.innerHTML = ""; // Clear the list
-
-    // Outer Loop: Iterates through each date object
+    // The data is an array of dates
     data.forEach(day => {
-      // Inner Loop: Iterates through the absences for that day
+      // Each date has an 'absences' array
       if (day.absences && Array.isArray(day.absences)) {
         day.absences.forEach(abs => {
           const li = document.createElement("li");
           
-          // Formatting the output: Date - Name (Type)
-          li.textContent = `${day.date}: ${abs.userName} (${abs.absenceType})`;
+          // Use the exact key from your JSON: "userName"
+          // We add fallbacks just in case the proxy changes the format
+          const name = abs.userName || (abs.user ? abs.user.name : null) || "Unknown User";
+          const type = abs.absenceType || "Absence";
+          const date = day.date; // From the parent object
+
+          li.textContent = `${date}: ${name} (${type})`;
           list.appendChild(li);
         });
       }
     });
 
     if (list.innerHTML === "") {
-      list.innerHTML = "<li>No absences found for this range.</li>";
+      list.innerHTML = "<li>No data found for these dates.</li>";
     }
-
-  } catch (error) {
-    list.innerHTML = `<li style="color: red;">Failed to fetch: ${error.message}</li>`;
-    console.error("Fetch error:", error);
+  } catch (e) {
+    list.innerHTML = "<li>Error: " + e.message + "</li>";
+    console.error(e);
   }
 }
 </script>
