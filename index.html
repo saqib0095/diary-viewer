@@ -21,7 +21,7 @@ async function load() {
   const list = document.getElementById("list");
 
   if (!from || !to) {
-    alert("Please select dates first");
+    alert("Please select dates");
     return;
   }
 
@@ -31,20 +31,22 @@ async function load() {
     const r = await fetch(`https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`);
     const data = await r.json();
     
-    list.innerHTML = "";
+    list.innerHTML = ""; // Clear the loading message
 
-    // The data is an array of dates
+    // LOOP 1: Go through each date object (e.g., 2025-01-01)
     data.forEach(day => {
-      // Each date has an 'absences' array
+      
+      // Check if this day actually has an absences list
       if (day.absences && Array.isArray(day.absences)) {
+        
+        // LOOP 2: Go through each person's absence on that day
         day.absences.forEach(abs => {
           const li = document.createElement("li");
           
-          // Use the exact key from your JSON: "userName"
-          // We add fallbacks just in case the proxy changes the format
-          const name = abs.userName || (abs.user ? abs.user.name : null) || "Unknown User";
-          const type = abs.absenceType || "Absence";
-          const date = day.date; // From the parent object
+          // Use 'abs' to get the name, and 'day' to get the date
+          const name = abs.userName; 
+          const type = abs.absenceType;
+          const date = day.date;
 
           li.textContent = `${date}: ${name} (${type})`;
           list.appendChild(li);
@@ -53,10 +55,10 @@ async function load() {
     });
 
     if (list.innerHTML === "") {
-      list.innerHTML = "<li>No data found for these dates.</li>";
+      list.innerHTML = "<li>No data found.</li>";
     }
   } catch (e) {
-    list.innerHTML = "<li>Error: " + e.message + "</li>";
+    list.innerHTML = "<li>Error fetching data.</li>";
     console.error(e);
   }
 }
