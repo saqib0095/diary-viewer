@@ -21,32 +21,31 @@ async function load() {
   const list = document.getElementById("list");
 
   if (!from || !to) {
-    alert("Please select dates");
+    alert("Please select both dates.");
     return;
   }
 
   list.innerHTML = "<li>Loading...</li>";
 
   try {
-    const r = await fetch(`https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`);
-    const data = await r.json();
+    const r = await fetch(
+      `https://timetastic-proxy.onrender.com/diary?from=${from}&to=${to}`
+    );
     
-    list.innerHTML = ""; // Clear the loading message
+    const data = await r.json();
+    list.innerHTML = ""; // Clear loading message
 
-    // LOOP 1: Go through each date object (e.g., 2025-01-01)
+    // 1. Loop through each day in the response
     data.forEach(day => {
-      
-      // Check if this day actually has an absences list
+      // 2. Loop through the array of absences for that specific day
       if (day.absences && Array.isArray(day.absences)) {
-        
-        // LOOP 2: Go through each person's absence on that day
         day.absences.forEach(abs => {
           const li = document.createElement("li");
           
-          // Use 'abs' to get the name, and 'day' to get the date
+          // These match the keys exactly as they appear in the documentation
           const name = abs.userName; 
           const type = abs.absenceType;
-          const date = day.date;
+          const date = day.date; 
 
           li.textContent = `${date}: ${name} (${type})`;
           list.appendChild(li);
@@ -55,11 +54,12 @@ async function load() {
     });
 
     if (list.innerHTML === "") {
-      list.innerHTML = "<li>No data found.</li>";
+      list.innerHTML = "<li>No data found for these dates.</li>";
     }
-  } catch (e) {
-    list.innerHTML = "<li>Error fetching data.</li>";
-    console.error(e);
+
+  } catch (error) {
+    list.innerHTML = `<li style="color: red;">Error: ${error.message}</li>`;
+    console.error("Fetch error:", error);
   }
 }
 </script>
