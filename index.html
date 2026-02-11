@@ -1,17 +1,20 @@
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' /> 
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script> 
+
 <div id='calendar-container' style="font-family: sans-serif; background: white; padding: 15px; border-radius: 8px;"> 
   <div id='status' style="text-align:center; color: #666; margin-bottom: 10px;">Checking Timetastic...</div> 
-  <div id='calendar'>
-  </div> 
+  <div id='calendar'></div> 
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const calendarEl = document.getElementById('calendar');
   const statusEl = document.getElementById('status');
+
+  const cache = {}; // store fetched months
+
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const cache = {}; // key = month YYYY-MM
+
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     height: "auto",
@@ -21,65 +24,70 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-   events: async function(info, successCallback, failureCallback) {
-  const monthKey = info.start.getFullYear() + '-' + String(info.start.getMonth()+1).padStart(2,'0');
+    events: async function(info, successCallback, failureCallback) {
+      const monthKey = info.start.getFullYear() + '-' + String(info.start.getMonth()+1).padStart(2,'0');
 
-  if (cache[monthKey]) {
-    // use cached events immediately
-    successCallback(cache[monthKey]);
-    return;
-  }
+      // If already cached, return immediately
+      if (cache[monthKey]) {
+        successCallback(cache[monthKey]);
+        return;
+      }
 
-  statusEl.innerHTML = `Fetching ${monthKey}...`;
+      statusEl.innerHTML = `Fetching ${monthKey}...`;
 
-  try {
-    const format = d => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    };
+      try {
+        const format = d => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        };
 
-    const monthStart = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
-    const monthEnd = new Date(info.start.getFullYear(), info.start.getMonth() + 1, 0);
+        const monthStart = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
+        const monthEnd = new Date(info.start.getFullYear(), info.start.getMonth() + 1, 0);
 
-    const startStr = format(monthStart) + "T00:00:00";
-    const endStr = format(monthEnd) + "T23:59:59";
+        const startStr = format(monthStart) + "T00:00:00";
+        const endStr = format(monthEnd) + "T23:59:59";
 
-    const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
-    const response = await fetch(url);
+        const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
+        const response = await fetch(url);
 
-    if (!response.ok) throw new Error('Fetch failed');
+        if (!response.ok) {
+          if (response.status === 429) {
+            console.warn("Rate limited — retrying in 1s...");
+            await sleep(1000);
+            return calendar.refetchEvents(); // retry
+          }
+          throw new Error('Fetch failed: ' + response.status);
+        }
 
-    const data = await response.json();
+        const data = await response.json();
 
-    const events = [];
-    data.forEach(day => {
-      if (!day.absences) return;
-      day.absences.forEach(abs => {
-        if (abs.absenceType === "PublicHoliday") return;
-        events.push({
-          title: abs.userName,
-          start: day.date,
-          allDay: true
+        const events = [];
+        data.forEach(day => {
+          if (!day.absences) return;
+          day.absences.forEach(abs => {
+            if (abs.absenceType === "PublicHoliday") return;
+            events.push({
+              title: abs.userName,
+              start: day.date,
+              allDay: true
+            });
+          });
         });
-      });
-    });
 
-    cache[monthKey] = events; // store in cache
-    statusEl.innerHTML = "";
-    successCallback(events);
+        cache[monthKey] = events; // store in cache
+        statusEl.innerHTML = "";
+        successCallback(events);
 
-  } catch (error) {
-    console.error(error);
-    statusEl.innerHTML = "Error fetching data";
-    failureCallback(error);
-  }
-}
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        statusEl.innerHTML = "Connection error";
+        failureCallback(error);
+      }
+    }
 
-
-// closes events
-  }); // closes calendar config
+  });
 
   calendar.render();
 });
