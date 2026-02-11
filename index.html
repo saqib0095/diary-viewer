@@ -50,11 +50,20 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log("Fetching:", url);
 
       const response = await fetch(url);
-
-      if (response.status === 429) {
-        console.warn("Rate limited — waiting 1 sec...");
-        await sleep(1000);
-        continue; // retry same month
+      let retries = 0;
+      while (cursor <= endRange) {
+          try {
+              // fetch logic here
+              retries = 0; // reset on success
+          } catch(e) {
+              if (retries < 5) {
+                  retries++;
+                  await sleep(2000);
+                  continue;
+              } else {
+                  throw e;
+              }
+          }
       }
 
       const data = await response.json();
