@@ -22,98 +22,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
     events: async function(info, successCallback, failureCallback) {
       statusEl.innerHTML = "Syncing data...";
-  statusEl.innerHTML = "Syncing data...";
 
-      const start = info.startStr.split('T')[0];
-      const end = info.endStr.split('T')[0];
-  const start = info.start.toISOString();
-  const end = info.end.toISOString();
+      const start = info.start.toISOString();
+      const end = info.end.toISOString();
 
       const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
       console.log("Fetching:", url);
-  const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${end}`;
-  console.log("Fetching:", url);
 
       try {
         const response = await fetch(url);
-  try {
-    const response = await fetch(url);
 
         if (!response.ok) {
+          const text = await response.text();
+          console.error("Server response:", text);
           throw new Error("HTTP error: " + response.status);
         }
 
         const data = await response.json();
-        console.log("Received:", data);
-    if (!response.ok) {
-      throw new Error("HTTP error: " + response.status);
-    }
-
-        if (!Array.isArray(data)) {
-          statusEl.innerHTML = "Data format error";
-          return successCallback([]);
-        }
-    const data = await response.json();
 
         const events = [];
-    const events = [];
 
         data.forEach(day => {
           if (!day.absences) return;
-    data.forEach(day => {
-      if (!day.absences) return;
 
           day.absences.forEach(abs => {
             if (abs.absenceType === "PublicHoliday") return;
-      day.absences.forEach(abs => {
-        if (abs.absenceType === "PublicHoliday") return;
 
             events.push({
               title: abs.userName,
               start: day.date,
-              allDay: true,
-              backgroundColor:
-                abs.absenceType === 'Sick'
-                  ? '#e74c3c'
-                  : '#3498db',
-              borderColor: 'transparent'
+              allDay: true
             });
           });
-        events.push({
-          title: abs.userName,
-          start: day.date,
-          allDay: true
         });
-      });
-    });
 
         statusEl.innerHTML = "";
         successCallback(events);
-    statusEl.innerHTML = "";
-    successCallback(events);
-
-  } catch (error) {
-    console.error("Fetch failed:", error);
-    statusEl.innerHTML = "Connection error";
-    failureCallback(error);
-  }
-}
 
       } catch (error) {
         console.error("Fetch failed:", error);
         statusEl.innerHTML = "Connection error";
         failureCallback(error);
       }
-    }
-  });
+    }// ← closes events
+  }); // ← closes calendar config
 
-  calendar.render();
+  calendar.render(); // ← now outside config
 });
 </script>
-
-
-<style>
-  #calendar-container { box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #ddd; }
-  .fc-event { padding: 2px 4px; font-weight: bold; cursor: default; }
-  .fc-toolbar-title { font-size: 1.2em !important; }
-</style>
