@@ -21,56 +21,52 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     events: async function(info, successCallback, failureCallback) {
-      statusEl.innerHTML = "Syncing data...";
+  statusEl.innerHTML = "Syncing data...";
 
-      const format = d => d.toISOString().slice(0, 10);
-      const start = format(info.start);
-      const end = format(info.end);
-      const params = new URLSearchParams({
-        from: start,
-        end: end
-      });
+  const format = d => d.toISOString().slice(0, 10);
 
-      const url = `https://timetastic-proxy.onrender.com/diary?${params.toString()}`;
-      //const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
-      console.log("Fetching:", url);
+  const start = format(info.start) + "T00:00:00";
+  const end = format(info.end) + "T23:59:59";
 
-      try {
-        const response = await fetch(url);
+  const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${end}`;
+  console.log("Fetching:", url);
 
-        if (!response.ok) {
-          const text = await response.text();
-          console.error("Server response:", text);
-          throw new Error("HTTP error: " + response.status);
-        }
+  try {
+    const response = await fetch(url);
 
-        const data = await response.json();
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Server response:", text);
+      throw new Error("HTTP error: " + response.status);
+    }
 
-        const events = [];
+    const data = await response.json();
 
-        data.forEach(day => {
-          if (!day.absences) return;
+    const events = [];
 
-          day.absences.forEach(abs => {
-            if (abs.absenceType === "PublicHoliday") return;
+    data.forEach(day => {
+      if (!day.absences) return;
 
-            events.push({
-              title: abs.userName,
-              start: day.date,
-              allDay: true
-            });
-          });
+      day.absences.forEach(abs => {
+        if (abs.absenceType === "PublicHoliday") return;
+
+        events.push({
+          title: abs.userName,
+          start: day.date,
+          allDay: true
         });
+      });
+    });
 
-        statusEl.innerHTML = "";
-        successCallback(events);
+    statusEl.innerHTML = "";
+    successCallback(events);
 
-      } catch (error) {
-        console.error("Fetch failed:", error);
-        statusEl.innerHTML = "Connection error";
-        failureCallback(error);
-      }
-    } // closes events
+  } catch (error) {
+    console.error("Fetch failed:", error);
+    statusEl.innerHTML = "Connection error";
+    failureCallback(error);
+  }
+}// closes events
   }); // closes calendar config
 
   calendar.render();
