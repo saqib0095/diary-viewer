@@ -61,11 +61,9 @@ document.addEventListener('DOMContentLoaded', function() {
     successCallback(events);
 
   } catch (error) {
-    console.error("Fetch failed:", error);
-    statusEl.innerHTML = "Connection error";
+    
     failureCallback(error);
     statusEl.innerHTML = "Connect
-  }
 }
     }// ← closes events
   }); // ← closes calendar config
