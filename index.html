@@ -21,7 +21,12 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-   const loadEvents = async (start, end) => {
+   let isLoading = false;
+
+const loadEvents = async (start, end) => {
+  if (isLoading) return;   // 🔒 prevent loop
+  isLoading = true;
+
   statusEl.innerHTML = "Syncing data...";
 
   const format = d => d.toISOString().split("T")[0];
@@ -58,12 +63,27 @@ document.addEventListener('DOMContentLoaded', function() {
     console.error(e);
     statusEl.innerHTML = "Connection error";
   }
+
+  isLoading = false;
 };
 
-// Load initially
+const calendar = new FullCalendar.Calendar(calendarEl, {
+  initialView: 'dayGridMonth',
+  height: "auto",
+  headerToolbar: {
+    left: 'prev,next today',
+    center: 'title',
+    right: 'dayGridMonth,listMonth'
+  },
+  events: [] // no async events here
+});
+
+calendar.render();
+
+// Initial load
 loadEvents(calendar.view.currentStart, calendar.view.currentEnd);
 
-// Reload on navigation
+// Reload only when month actually changes
 calendar.on('datesSet', function(info) {
   loadEvents(info.start, info.end);
 });
