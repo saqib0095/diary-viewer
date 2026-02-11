@@ -67,15 +67,17 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-    events: function(info, successCallback) {
-      // render immediately with empty array
-      successCallback([]);
-
-      // fetch month asynchronously and update calendar once loaded
-      fetchMonthEvents(info.start.getFullYear(), info.start.getMonth())
-        .then(events => {
-          calendar.addEventSource(events);
-        });
+    events: async function(info, successCallback, failureCallback) {
+      try {
+        const events = await fetchMonthEvents(
+          info.start.getFullYear(),
+          info.start.getMonth()
+        );
+    
+        successCallback(events);
+      } catch (error) {
+        failureCallback(error);
+      }
     }
   });
 
