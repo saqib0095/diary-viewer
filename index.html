@@ -10,68 +10,8 @@
 document.addEventListener('DOMContentLoaded', function() {
   const calendarEl = document.getElementById('calendar');
   const statusEl = document.getElementById('status');
-
-  let isLoading = false;
-  let currentController = null;
-
-  const loadEvents = async (start, end) => {
-    if (isLoading) return;
-    isLoading = true;
-
-    statusEl.innerHTML = "Syncing data...";
-
-    const format = d => d.toISOString().split("T")[0];
-
-    try {
-      // cancel previous request if still running
-      if (currentController) {
-        currentController.abort();
-      }
-
-      currentController = new AbortController();
-
-      const url = `https://timetastic-proxy.onrender.com/diary?from=${format(start)}T00:00:00&to=${format(end)}T23:59:59`;
-
-      const response = await fetch(url, {
-        signal: currentController.signal
-      });
-
-      if (!response.ok) throw new Error(response.status);
-
-      const data = await response.json();
-      const events = [];
-
-      data.forEach(day => {
-        if (!day.absences) return;
-
-        day.absences.forEach(abs => {
-          if (abs.absenceType === "PublicHoliday") return;
-
-          events.push({
-            title: abs.userName,
-            start: day.date,
-            allDay: true
-          });
-        });
-      });
-
-      calendar.removeAllEvents();
-      calendar.addEventSource(events);
-
-      statusEl.innerHTML = "";
-
-    } catch (e) {
-      if (e.name === "AbortError") {
-        return; // ignore cancelled requests
-      }
-
-      console.error(e);
-      statusEl.innerHTML = "Connection error";
-    }
-
-    isLoading = false;
-  };
-
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     height: "auto",
@@ -80,18 +20,89 @@ document.addEventListener('DOMContentLoaded', function() {
       center: 'title',
       right: 'dayGridMonth,listMonth'
     },
-    events: [] // start empty, load manually
-  });
+
+   events: async function(info, successCallback, failureCallback) {
+  statusEl.innerHTML = "Syncing data...";
+
+  const format = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  // normalize to month boundaries
+  let cursor = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
+  const endRange = new Date(info.end.getFullYear(), info.end.getMonth() + 1, 0);
+
+  const allEvents = [];
+
+  try {
+    while (cursor <= endRange) {
+      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+
+      const startStr = format(monthStart) + "T00:00:00";
+      const endStr = format(monthEnd) + "T23:59:59";
+
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
+      console.log("Fetching:", url);
+
+      const response = await fetch(url);
+
+     let retries = 0;
+      while (cursor <= endRange) {
+          try {
+              // fetch logic here
+              retries = 0; // reset on success
+          } catch(e) {
+              if (retries < 5) {
+                  retries++;
+                  await sleep(2000);
+                  continue;
+              } else {
+                  throw e;
+              }
+          }
+      }
+
+
+      const data = await response.json();
+
+      data.forEach(day => {
+        if (!day.absences) return;
+
+        day.absences.forEach(abs => {
+          if (abs.absenceType === "PublicHoliday") return;
+
+          allEvents.push({
+            title: abs.userName,
+            start: day.date,
+            allDay: true
+          });
+        });
+      });
+      await sleep(1000); // throttle requests
+      //next month
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+
+      // next month
+      //cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+
+    statusEl.innerHTML = "";
+    successCallback(allEvents);
+
+  } catch (error) {
+    console.error("Fetch failed:", error);
+    statusEl.innerHTML = "Connection error";
+    failureCallback(error);
+  }
+}
+
+// closes events
+  }); // closes calendar config
 
   calendar.render();
-
-  // Initial load
-  loadEvents(calendar.view.currentStart, calendar.view.currentEnd);
-
-  // Reload on navigation
-  calendar.on('datesSet', function(info) {
-    loadEvents(info.start, info.end);
-  });
-
 });
 </script>
