@@ -26,8 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const format = d => d.toISOString().slice(0, 10);
       const start = format(info.start);
       const end = format(info.end);
+      const params = new URLSearchParams({
+        from: start,
+        end: end
+      });
 
-      const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
+      const url = `https://timetastic-proxy.onrender.com/diary?${params.toString()}`;
+      //const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
       console.log("Fetching:", url);
 
       try {
