@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-    events: async function(info, successCallback, failureCallback) {
+   events: async function(info, successCallback, failureCallback) {
   statusEl.innerHTML = "Syncing data...";
 
   const format = d => {
@@ -29,48 +29,64 @@ document.addEventListener('DOMContentLoaded', function() {
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
-      //first visible day
-  const start = format(info.start) + "T00:00:00";
-  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
-  const startStr = format(start) + "T00:00:00";
-  const endStr = format(end) + "T23:59:59";
 
-  const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
-  console.log("Fetching:", url);
+  let cursor = new Date(info.start);
+  const endRange = new Date(info.end);
+
+  const allEvents = [];
 
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("Server response:", text);
-      throw new Error("HTTP error: " + response.status);
-    }
+    while (cursor < endRange) {
+      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
 
-    const data = await response.json();
+      const startStr = format(monthStart) + "T00:00:00";
+      const endStr = format(monthEnd) + "T23:59:59";
 
-    const events = [];
 
-    data.forEach(day => {
-      if (!day.absences) return;
-      day.absences.forEach(abs => {
-        if (abs.absenceType === "PublicHoliday") return;
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
+      console.log("Fetching:", url);
 
-        events.push({
-          title: abs.userName,
-          start: day.date,
-          allDay: true
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Server response:", text);
+        throw new Error("HTTP error: " + response.status);
+      }
+
+      const data = await response.json();
+
+      data.forEach(day => {
+        if (!day.absences) return;
+
+        day.absences.forEach(abs => {
+          if (abs.absenceType === "PublicHoliday") return;
+
+       
+          allEvents.push({
+            title: abs.userName,
+            start: day.date,
+            allDay: true
+          });
         });
       });
-    });
+
+      // move to next month
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
 
     statusEl.innerHTML = "";
-    successCallback(events);
+    successCallback(allEvents);
+
   } catch (error) {
     console.error("Fetch failed:", error);
     statusEl.innerHTML = "Connection error";
     failureCallback(error);
   }
-}// closes events
+}
+
+// closes events
   }); // closes calendar config
 
   calendar.render();
