@@ -10,8 +10,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   const calendarEl = document.getElementById('calendar');
   const statusEl = document.getElementById('status');
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  
+
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     height: "auto",
@@ -21,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-   events: async function(info, successCallback, failureCallback) {
+    events: async function(info, successCallback, failureCallback) {
   statusEl.innerHTML = "Syncing data...";
 
   const format = d => {
@@ -31,76 +30,48 @@ document.addEventListener('DOMContentLoaded', function() {
     return `${y}-${m}-${day}`;
   };
 
-  // normalize to month boundaries
-  let cursor = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
-  const endRange = new Date(info.end.getFullYear(), info.end.getMonth() + 1, 0);
+  const start = format(info.start) + "T00:00:00";
+  const to = format(info.end) + "T23:59:59";
 
-  const allEvents = [];
+  const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${end}`;
+  console.log("Fetching:", url);
 
   try {
-    while (cursor <= endRange) {
-      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+    const response = await fetch(url);
 
-      const startStr = format(monthStart) + "T00:00:00";
-      const endStr = format(monthEnd) + "T23:59:59";
-
-      const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
-      console.log("Fetching:", url);
-
-      const response = await fetch(url);
-
-     let retries = 0;
-      while (cursor <= endRange) {
-          try {
-              // fetch logic here
-              retries = 0; // reset on success
-          } catch(e) {
-              if (retries < 5) {
-                  retries++;
-                  await sleep(2000);
-                  continue;
-              } else {
-                  throw e;
-              }
-          }
-      }
-
-
-      const data = await response.json();
-
-      data.forEach(day => {
-        if (!day.absences) return;
-
-        day.absences.forEach(abs => {
-          if (abs.absenceType === "PublicHoliday") return;
-
-          allEvents.push({
-            title: abs.userName,
-            start: day.date,
-            allDay: true
-          });
-        });
-      });
-      await sleep(1000); // throttle requests
-      //next month
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-
-      // next month
-      //cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Server response:", text);
+      throw new Error("HTTP error: " + response.status);
     }
 
+    const data = await response.json();
+
+    const events = [];
+
+    data.forEach(day => {
+      if (!day.absences) return;
+
+      day.absences.forEach(abs => {
+        if (abs.absenceType === "PublicHoliday") return;
+
+        events.push({
+          title: abs.userName,
+          start: day.date,
+          allDay: true
+        });
+      });
+    });
+
     statusEl.innerHTML = "";
-    successCallback(allEvents);
+    successCallback(events);
 
   } catch (error) {
     console.error("Fetch failed:", error);
     statusEl.innerHTML = "Connection error";
     failureCallback(error);
   }
-}
-
-// closes events
+}// closes events
   }); // closes calendar config
 
   calendar.render();
