@@ -31,70 +31,38 @@ document.addEventListener('DOMContentLoaded', function() {
     return `${y}-${m}-${day}`;
   };
 
-  // normalize to month boundaries
-  let cursor = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
-  const endRange = new Date(info.end.getFullYear(), info.end.getMonth() + 1, 0);
-
-  const allEvents = [];
+  const startStr = format(info.start) + "T00:00:00";
+  const endStr   = format(info.end) + "T23:59:59";
 
   try {
-    while (cursor <= endRange) {
-      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+    const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
+    console.log("Fetching:", url);
 
-      const startStr = format(monthStart) + "T00:00:00";
-      const endStr = format(monthEnd) + "T23:59:59";
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(response.status);
 
-      const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
-      console.log("Fetching:", url);
+    const data = await response.json();
+    const events = [];
 
-      const response = await fetch(url);
+    data.forEach(day => {
+      if (!day.absences) return;
 
-     let retries = 0;
-      while (cursor <= endRange) {
-          try {
-              // fetch logic here
-              retries = 0; // reset on success
-          } catch(e) {
-              if (retries < 5) {
-                  retries++;
-                  await sleep(2000);
-                  continue;
-              } else {
-                  throw e;
-              }
-          }
-      }
+      day.absences.forEach(abs => {
+        if (abs.absenceType === "PublicHoliday") return;
 
-
-      const data = await response.json();
-
-      data.forEach(day => {
-        if (!day.absences) return;
-
-        day.absences.forEach(abs => {
-          if (abs.absenceType === "PublicHoliday") return;
-
-          allEvents.push({
-            title: abs.userName,
-            start: day.date,
-            allDay: true
-          });
+        events.push({
+          title: abs.userName,
+          start: day.date,
+          allDay: true
         });
       });
-      await sleep(1000); // throttle requests
-      //next month
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-
-      // next month
-      //cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
+    });
 
     statusEl.innerHTML = "";
-    successCallback(allEvents);
+    successCallback(events);
 
   } catch (error) {
-    console.error("Fetch failed:", error);
+    console.error(error);
     statusEl.innerHTML = "Connection error";
     failureCallback(error);
   }
