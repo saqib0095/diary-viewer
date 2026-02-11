@@ -1,11 +1,3 @@
-<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-
-<div id='calendar-container' style="font-family: sans-serif; background: white; padding: 15px; border-radius: 8px;">
-  <div id='status' style="text-align:center; color: #666; margin-bottom: 10px;">Checking Timetastic...</div>
-  <div id='calendar'></div>
-</div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const calendarEl = document.getElementById('calendar');
@@ -21,57 +13,50 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     events: async function(info, successCallback, failureCallback) {
-  statusEl.innerHTML = "Syncing data...";
+      statusEl.innerHTML = "Syncing data...";
 
-  const start = info.start.toISOString();
-  const end = info.end.toISOString();
+      const start = info.start.toISOString();
+      const end = info.end.toISOString();
 
-  const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${end}`;
-  console.log("Fetching:", url);
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${end}`;
+      console.log("Fetching:", url);
 
-  try {
-    const response = await fetch(url);
+      try {
+        const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error("HTTP error: " + response.status);
-    }
+        if (!response.ok) {
+          throw new Error("HTTP error: " + response.status);
+        }
 
-    const data = await response.json();
+        const data = await response.json();
 
-    const events = [];
+        const events = [];
 
-    data.forEach(day => {
-      if (!day.absences) return;
+        data.forEach(day => {
+          if (!day.absences) return;
 
-      day.absences.forEach(abs => {
-        if (abs.absenceType === "PublicHoliday") return;
+          day.absences.forEach(abs => {
+            if (abs.absenceType === "PublicHoliday") return;
 
-        events.push({
-          title: abs.userName,
-          start: day.date,
-          allDay: true
+            events.push({
+              title: abs.userName,
+              start: day.date,
+              allDay: true
+            });
+          });
         });
-      });
-    });
 
-    statusEl.innerHTML = "";
-    successCallback(events);
+        statusEl.innerHTML = "";
+        successCallback(events);
 
-  } catch (error) {
-    console.error("Fetch failed:", error);
-    statusEl.innerHTML = "Connection error";
-    failureCallback(error);
-  }
-}
+      } catch (error) {
+        console.error("Fetch failed:", error);
+        statusEl.innerHTML = "Connection error";
+        failureCallback(error);
+      }
+    } // ← closes events
+  }); // ← closes calendar config
 
-
-  calendar.render();
+  calendar.render(); // ← now outside config
 });
 </script>
-
-
-<style>
-  #calendar-container { box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #ddd; }
-  .fc-event { padding: 2px 4px; font-weight: bold; cursor: default; }
-  .fc-toolbar-title { font-size: 1.2em !important; }
-</style>
