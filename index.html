@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
   statusEl.innerHTML = "Syncing data...";
 
   const format = d => d.toISOString().slice(0, 10);
+
   const start = format(info.start);
   const end = format(info.end);
 
@@ -61,10 +62,8 @@ document.addEventListener('DOMContentLoaded', function() {
     successCallback(events);
 
   } catch (error) {
-    
-    failureCallback(error);
-    statusEl.innerHTML = "Connect
-}
+    console.error("Fetch failed:", error);
+    statusEl.innerHTML = "Connect  
     }// ← closes events
   }); // ← closes calendar config
 
