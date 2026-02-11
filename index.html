@@ -18,13 +18,15 @@ document.addEventListener('DOMContentLoaded', function() {
       const start = info.start.toISOString();
       const end = info.end.toISOString();
 
-      const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${end}`;
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
       console.log("Fetching:", url);
 
       try {
         const response = await fetch(url);
 
         if (!response.ok) {
+          const text = await response.text();
+          console.error("Server response:", text);
           throw new Error("HTTP error: " + response.status);
         }
 
@@ -54,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
         statusEl.innerHTML = "Connection error";
         failureCallback(error);
       }
-    } // ← closes events
+    }// ← closes events
   }); // ← closes calendar config
 
   calendar.render(); // ← now outside config
