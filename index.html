@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const start = info.startStr.split('T')[0];
       const end = info.endStr.split('T')[0];
 
-      const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${end}`;
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
       console.log("Fetching:", url);
 
       try {
