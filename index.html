@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-    events: async function(info, successCallback, failureCallback) {
+   events: async function(info, successCallback, failureCallback) {
   statusEl.innerHTML = "Syncing data...";
 
   const format = d => {
@@ -30,10 +30,16 @@ document.addEventListener('DOMContentLoaded', function() {
     return `${y}-${m}-${day}`;
   };
 
-  const start = format(info.start) + "T00:00:00";
-  const to = format(info.to) + "T23:59:59";
+  // start = first visible day
+  const start = new Date(info.start);
 
-  const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${to}`;
+  // end = last day of SAME month
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+
+  const startStr = format(start) + "T00:00:00";
+  const endStr = format(end) + "T23:59:59";
+
+  const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
   console.log("Fetching:", url);
 
   try {
@@ -71,7 +77,8 @@ document.addEventListener('DOMContentLoaded', function() {
     statusEl.innerHTML = "Connection error";
     failureCallback(error);
   }
-}// closes events
+}
+// closes events
   }); // closes calendar config
 
   calendar.render();
