@@ -51,3 +51,20 @@ document.addEventListener('DOMContentLoaded', function() {
       // next month
       cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
     }
+
+    statusEl.innerHTML = "";
+    successCallback(allEvents);
+
+  } catch (error) {
+    console.error("Fetch failed:", error);
+    statusEl.innerHTML = "Connection error";
+    failureCallback(error);
+  }
+}
+
+// closes events
+  }); // closes calendar config
+
+  calendar.render();
+});
+</script>
