@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const calendarEl = document.getElementById('calendar');
   const statusEl = document.getElementById('status');
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  
+  const cache = {}; // key = month YYYY-MM
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     height: "auto",
@@ -22,83 +22,61 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
    events: async function(info, successCallback, failureCallback) {
-  statusEl.innerHTML = "Syncing data...";
+  const monthKey = info.start.getFullYear() + '-' + String(info.start.getMonth()+1).padStart(2,'0');
 
-  const format = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
+  if (cache[monthKey]) {
+    // use cached events immediately
+    successCallback(cache[monthKey]);
+    return;
+  }
 
-  // normalize to month boundaries
-  let cursor = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
-  const endRange = new Date(info.end.getFullYear(), info.end.getMonth() + 1, 0);
-
-  const allEvents = [];
+  statusEl.innerHTML = `Fetching ${monthKey}...`;
 
   try {
-    while (cursor <= endRange) {
-      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+    const format = d => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
 
-      const startStr = format(monthStart) + "T00:00:00";
-      const endStr = format(monthEnd) + "T23:59:59";
+    const monthStart = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
+    const monthEnd = new Date(info.start.getFullYear(), info.start.getMonth() + 1, 0);
 
-      const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
-      console.log("Fetching:", url);
+    const startStr = format(monthStart) + "T00:00:00";
+    const endStr = format(monthEnd) + "T23:59:59";
 
-      const response = await fetch(url);
+    const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
+    const response = await fetch(url);
 
-     let retries = 0;
-      while (cursor <= endRange) {
-          try {
-              // fetch logic here
-              retries = 0; // reset on success
-          } catch(e) {
-              if (retries < 5) {
-                  retries++;
-                  await sleep(2000);
-                  continue;
-              } else {
-                  throw e;
-              }
-          }
-      }
+    if (!response.ok) throw new Error('Fetch failed');
 
+    const data = await response.json();
 
-      const data = await response.json();
-
-      data.forEach(day => {
-        if (!day.absences) return;
-
-        day.absences.forEach(abs => {
-          if (abs.absenceType === "PublicHoliday") return;
-
-          allEvents.push({
-            title: abs.userName,
-            start: day.date,
-            allDay: true
-          });
+    const events = [];
+    data.forEach(day => {
+      if (!day.absences) return;
+      day.absences.forEach(abs => {
+        if (abs.absenceType === "PublicHoliday") return;
+        events.push({
+          title: abs.userName,
+          start: day.date,
+          allDay: true
         });
       });
-      await sleep(1000); // throttle requests
-      //next month
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    });
 
-      // next month
-      //cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
-
+    cache[monthKey] = events; // store in cache
     statusEl.innerHTML = "";
-    successCallback(allEvents);
+    successCallback(events);
 
   } catch (error) {
-    console.error("Fetch failed:", error);
-    statusEl.innerHTML = "Connection error";
+    console.error(error);
+    statusEl.innerHTML = "Error fetching data";
     failureCallback(error);
   }
 }
+
 
 // closes events
   }); // closes calendar config
