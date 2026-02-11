@@ -23,8 +23,10 @@ document.addEventListener('DOMContentLoaded', function() {
     events: async function(info, successCallback, failureCallback) {
   statusEl.innerHTML = "Syncing data...";
 
-  const start = info.start.toISOString().split('T')[0];
-  const end = info.end.toISOString().split('T')[0];
+  const format = d => d.toISOString().slice(0, 10);
+
+  const start = format(info.start);
+  const end = format(info.end);
 
   const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
   console.log("Fetching:", url);
@@ -61,10 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   } catch (error) {
     console.error("Fetch failed:", error);
-    statusEl.innerHTML = "Connection error";
-    failureCallback(error);
+    statusEl.innerHTML = "Connect
   }
-}
     }// ← closes events
   }); // ← closes calendar config
 
