@@ -12,8 +12,51 @@ document.addEventListener('DOMContentLoaded', function() {
   const statusEl = document.getElementById('status');
 
   const cache = {}; // store fetched months
-
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  const fetchMonthEvents = async (year, month) => {
+    const monthKey = `${year}-${String(month+1).padStart(2,'0')}`;
+    if (cache[monthKey]) return cache[monthKey];
+
+    statusEl.innerHTML = `Fetching ${monthKey}...`;
+
+    const format = d => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    const startStr = format(monthStart) + "T00:00:00";
+    const endStr = format(monthEnd) + "T23:59:59";
+
+    try {
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Fetch failed: " + response.status);
+      const data = await response.json();
+
+      const events = [];
+      data.forEach(day => {
+        if (!day.absences) return;
+        day.absences.forEach(abs => {
+          if (abs.absenceType === "PublicHoliday") return;
+          events.push({ title: abs.userName, start: day.date, allDay: true });
+        });
+      });
+
+      cache[monthKey] = events;
+      statusEl.innerHTML = "";
+      return events;
+
+    } catch(e) {
+      console.error(e);
+      statusEl.innerHTML = "Connection error";
+      return [];
+    }
+  };
 
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
@@ -24,69 +67,16 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-    events: async function(info, successCallback, failureCallback) {
-      const monthKey = info.start.getFullYear() + '-' + String(info.start.getMonth()+1).padStart(2,'0');
+    events: function(info, successCallback) {
+      // render immediately with empty array
+      successCallback([]);
 
-      // If already cached, return immediately
-      if (cache[monthKey]) {
-        successCallback(cache[monthKey]);
-        return;
-      }
-
-      statusEl.innerHTML = `Fetching ${monthKey}...`;
-
-      try {
-        const format = d => {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, "0");
-          const day = String(d.getDate()).padStart(2, "0");
-          return `${y}-${m}-${day}`;
-        };
-
-        const monthStart = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
-        const monthEnd = new Date(info.start.getFullYear(), info.start.getMonth() + 1, 0);
-
-        const startStr = format(monthStart) + "T00:00:00";
-        const endStr = format(monthEnd) + "T23:59:59";
-
-        const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          if (response.status === 429) {
-            console.warn("Rate limited — retrying in 1s...");
-            await sleep(1000);
-            return calendar.refetchEvents(); // retry
-          }
-          throw new Error('Fetch failed: ' + response.status);
-        }
-
-        const data = await response.json();
-
-        const events = [];
-        data.forEach(day => {
-          if (!day.absences) return;
-          day.absences.forEach(abs => {
-            if (abs.absenceType === "PublicHoliday") return;
-            events.push({
-              title: abs.userName,
-              start: day.date,
-              allDay: true
-            });
-          });
+      // fetch month asynchronously and update calendar once loaded
+      fetchMonthEvents(info.start.getFullYear(), info.start.getMonth())
+        .then(events => {
+          calendar.addEventSource(events);
         });
-
-        cache[monthKey] = events; // store in cache
-        statusEl.innerHTML = "";
-        successCallback(events);
-
-      } catch (error) {
-        console.error("Error fetching events:", error);
-        statusEl.innerHTML = "Connection error";
-        failureCallback(error);
-      }
     }
-
   });
 
   calendar.render();
