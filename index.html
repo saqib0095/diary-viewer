@@ -30,13 +30,14 @@ document.addEventListener('DOMContentLoaded', function() {
     return `${y}-${m}-${day}`;
   };
 
-  let cursor = new Date(info.start);
-  const endRange = new Date(info.end);
+  let cursor = new Date(info.start.getFullYear(), info.start.getMonth(), 1);
+  const endRange = new Date(info.end.getFullYear(), info.end.getMonth() + 1, 0);
 
+     
   const allEvents = [];
 
   try {
-    while (cursor < endRange) {
+    while (cursor <= endRange) {
       const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
 
@@ -72,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
 
-      // move to next month
+      // next month
       cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
     }
 
