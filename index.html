@@ -10,7 +10,8 @@
 document.addEventListener('DOMContentLoaded', function() {
   const calendarEl = document.getElementById('calendar');
   const statusEl = document.getElementById('status');
-
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     height: "auto",
@@ -49,11 +50,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
       const response = await fetch(url);
 
-      if (!response.ok) {
-        const text = await response.text();
-        console.error("Server response:", text);
-        throw new Error("HTTP error: " + response.status);
+      if (response.status === 429) {
+        console.warn("Rate limited — waiting 1 sec...");
+        await sleep(1000);
+        continue; // retry same month
       }
+
 
       const data = await response.json();
 
@@ -70,9 +72,12 @@ document.addEventListener('DOMContentLoaded', function() {
           });
         });
       });
+      await sleep(1000); // throttle requests
+      //next month
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
 
       // next month
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      //cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
     }
 
     statusEl.innerHTML = "";
