@@ -21,52 +21,53 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     events: async function(info, successCallback, failureCallback) {
-  statusEl.innerHTML = "Syncing data...";
+      statusEl.innerHTML = "Syncing data...";
 
-  const format = d => d.toISOString().slice(0, 10);
+      const format = d => d.toISOString().slice(0, 10);
+      const start = format(info.start);
+      const end = format(info.end);
 
-  const start = format(info.start);
-  const end = format(info.end);
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
+      console.log("Fetching:", url);
 
-  const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&end=${end}`;
-  console.log("Fetching:", url);
+      try {
+        const response = await fetch(url);
 
-  try {
-    const response = await fetch(url);
+        if (!response.ok) {
+          const text = await response.text();
+          console.error("Server response:", text);
+          throw new Error("HTTP error: " + response.status);
+        }
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("Server response:", text);
-      throw new Error("HTTP error: " + response.status);
-    }
+        const data = await response.json();
 
-    const data = await response.json();
+        const events = [];
 
-    const events = [];
+        data.forEach(day => {
+          if (!day.absences) return;
 
-    data.forEach(day => {
-      if (!day.absences) return;
+          day.absences.forEach(abs => {
+            if (abs.absenceType === "PublicHoliday") return;
 
-      day.absences.forEach(abs => {
-        if (abs.absenceType === "PublicHoliday") return;
-
-        events.push({
-          title: abs.userName,
-          start: day.date,
-          allDay: true
+            events.push({
+              title: abs.userName,
+              start: day.date,
+              allDay: true
+            });
+          });
         });
-      });
-    });
 
-    statusEl.innerHTML = "";
-    successCallback(events);
+        statusEl.innerHTML = "";
+        successCallback(events);
 
-  } catch (error) {
-    console.error("Fetch failed:", error);
-    statusEl.innerHTML = "Connect  
-    }// ← closes events
-  }); // ← closes calendar config
+      } catch (error) {
+        console.error("Fetch failed:", error);
+        statusEl.innerHTML = "Connection error";
+        failureCallback(error);
+      }
+    } // closes events
+  }); // closes calendar config
 
-  calendar.render(); // ← now outside config
+  calendar.render();
 });
 </script>
