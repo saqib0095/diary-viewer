@@ -21,22 +21,13 @@ document.addEventListener('DOMContentLoaded', function() {
       right: 'dayGridMonth,listMonth'
     },
 
-   events: async function(info, successCallback, failureCallback) {
+   const loadEvents = async (start, end) => {
   statusEl.innerHTML = "Syncing data...";
 
-  const format = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
-
-  const startStr = format(info.start) + "T00:00:00";
-  const endStr   = format(info.end) + "T23:59:59";
+  const format = d => d.toISOString().split("T")[0];
 
   try {
-    const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
-    console.log("Fetching:", url);
+    const url = `https://timetastic-proxy.onrender.com/diary?from=${format(start)}T00:00:00&to=${format(end)}T23:59:59`;
 
     const response = await fetch(url);
     if (!response.ok) throw new Error(response.status);
@@ -58,19 +49,22 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
+    calendar.removeAllEvents();
+    calendar.addEventSource(events);
+
     statusEl.innerHTML = "";
-    successCallback(events);
 
-  } catch (error) {
-    console.error(error);
+  } catch (e) {
+    console.error(e);
     statusEl.innerHTML = "Connection error";
-    failureCallback(error);
   }
-}
+};
 
-// closes events
-  }); // closes calendar config
+// Load initially
+loadEvents(calendar.view.currentStart, calendar.view.currentEnd);
 
-  calendar.render();
+// Reload on navigation
+calendar.on('datesSet', function(info) {
+  loadEvents(info.start, info.end);
 });
 </script>
