@@ -23,7 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
     events: async function(info, successCallback, failureCallback) {
   statusEl.innerHTML = "Syncing data...";
 
-  const format = d => d.toISOString().slice(0, 10);
+  const format = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
   const start = format(info.start) + "T00:00:00";
   const end = format(info.end) + "T23:59:59";
