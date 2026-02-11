@@ -10,8 +10,68 @@
 document.addEventListener('DOMContentLoaded', function() {
   const calendarEl = document.getElementById('calendar');
   const statusEl = document.getElementById('status');
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  
+
+  let isLoading = false;
+  let currentController = null;
+
+  const loadEvents = async (start, end) => {
+    if (isLoading) return;
+    isLoading = true;
+
+    statusEl.innerHTML = "Syncing data...";
+
+    const format = d => d.toISOString().split("T")[0];
+
+    try {
+      // cancel previous request if still running
+      if (currentController) {
+        currentController.abort();
+      }
+
+      currentController = new AbortController();
+
+      const url = `https://timetastic-proxy.onrender.com/diary?from=${format(start)}T00:00:00&to=${format(end)}T23:59:59`;
+
+      const response = await fetch(url, {
+        signal: currentController.signal
+      });
+
+      if (!response.ok) throw new Error(response.status);
+
+      const data = await response.json();
+      const events = [];
+
+      data.forEach(day => {
+        if (!day.absences) return;
+
+        day.absences.forEach(abs => {
+          if (abs.absenceType === "PublicHoliday") return;
+
+          events.push({
+            title: abs.userName,
+            start: day.date,
+            allDay: true
+          });
+        });
+      });
+
+      calendar.removeAllEvents();
+      calendar.addEventSource(events);
+
+      statusEl.innerHTML = "";
+
+    } catch (e) {
+      if (e.name === "AbortError") {
+        return; // ignore cancelled requests
+      }
+
+      console.error(e);
+      statusEl.innerHTML = "Connection error";
+    }
+
+    isLoading = false;
+  };
+
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     height: "auto",
@@ -20,71 +80,18 @@ document.addEventListener('DOMContentLoaded', function() {
       center: 'title',
       right: 'dayGridMonth,listMonth'
     },
+    events: [] // start empty, load manually
+  });
 
-   let isLoading = false;
+  calendar.render();
 
-const loadEvents = async (start, end) => {
-  if (isLoading) return;   // 🔒 prevent loop
-  isLoading = true;
+  // Initial load
+  loadEvents(calendar.view.currentStart, calendar.view.currentEnd);
 
-  statusEl.innerHTML = "Syncing data...";
+  // Reload on navigation
+  calendar.on('datesSet', function(info) {
+    loadEvents(info.start, info.end);
+  });
 
-  const format = d => d.toISOString().split("T")[0];
-
-  try {
-    const url = `https://timetastic-proxy.onrender.com/diary?from=${format(start)}T00:00:00&to=${format(end)}T23:59:59`;
-
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(response.status);
-
-    const data = await response.json();
-    const events = [];
-
-    data.forEach(day => {
-      if (!day.absences) return;
-
-      day.absences.forEach(abs => {
-        if (abs.absenceType === "PublicHoliday") return;
-
-        events.push({
-          title: abs.userName,
-          start: day.date,
-          allDay: true
-        });
-      });
-    });
-
-    calendar.removeAllEvents();
-    calendar.addEventSource(events);
-
-    statusEl.innerHTML = "";
-
-  } catch (e) {
-    console.error(e);
-    statusEl.innerHTML = "Connection error";
-  }
-
-  isLoading = false;
-};
-
-const calendar = new FullCalendar.Calendar(calendarEl, {
-  initialView: 'dayGridMonth',
-  height: "auto",
-  headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'dayGridMonth,listMonth'
-  },
-  events: [] // no async events here
-});
-
-calendar.render();
-
-// Initial load
-loadEvents(calendar.view.currentStart, calendar.view.currentEnd);
-
-// Reload only when month actually changes
-calendar.on('datesSet', function(info) {
-  loadEvents(info.start, info.end);
 });
 </script>
