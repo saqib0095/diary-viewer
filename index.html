@@ -29,11 +29,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
+      //first visible day
   const start = format(info.start) + "T00:00:00";
-  const end = format(info.to) + "T23:59:59";
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+  const startStr = format(start) + "T00:00:00";
+  const endStr = format(end) + "T23:59:59";
 
-
-  const url = `https://timetastic-proxy.onrender.com/diary?from=${start}&to=${to}`;
+  const url = `https://timetastic-proxy.onrender.com/diary?from=${startStr}&to=${endStr}`;
   console.log("Fetching:", url);
 
   try {
